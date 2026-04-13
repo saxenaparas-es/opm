@@ -77,6 +77,36 @@ def plant_heat_rate_calc():
     return jsonify(plant_heat_rate(res))
 
 
+@efficiency_bp.route('/design', methods=['POST'])
+def fetch_design():
+    res = request.json
+    return jsonify({"status": "design endpoint"})
+
+
+@efficiency_bp.route('/bestachieved', methods=['POST'])
+def best_achieved():
+    res = request.json
+    return jsonify({"status": "bestachieved endpoint"})
+
+
+@efficiency_bp.route('/onDemand', methods=['POST'])
+def on_demand():
+    res = request.json
+    return jsonify({"status": "ondemand endpoint"})
+
+
+@efficiency_bp.route('/fuelValidate', methods=['POST'])
+def validate_fuel():
+    res = request.json
+    return jsonify({"status": "fuelvalidate endpoint"})
+
+
+@efficiency_bp.route('/blendValidate', methods=['POST'])
+def validate_blend():
+    res = request.json
+    return jsonify({"status": "blendvalidate endpoint"})
+
+
 @efficiency_bp.route('/test', methods=['GET'])
 def test():
     return jsonify({"status": "passed"}), 200
