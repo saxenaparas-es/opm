@@ -1,10 +1,9 @@
-"""Configuration module for optimized filter."""
-
 import os
 
 API_META = os.environ.get('API_META', '')
 API_QUERY = os.environ.get('API_QUERY', '')
 EFFICIENCY_URL = os.environ.get('EFFICIENCY_URL', '')
+KAIROS_URL = os.environ.get('KAIROS_URL', '')
 
 BROKER_ADDRESS = os.environ.get('BROKER_ADDRESS', '')
 BROKER_PORT = int(os.environ.get('Q_PORT', '1883'))

@@ -1,5 +1,46 @@
 from optimized_api._imports import requests, time, pd, Dict, Any, List, Optional
 from datetime import datetime
+import os
+
+
+def get_heatrates(unit_id: str) -> List[Dict]:
+    try:
+        config = {}
+        url = config.get('api', {}).get('meta', '') + f'/units/{unit_id}/heatrates'
+        res = requests.get(url)
+        if res.status_code == 200:
+            return res.json()
+    except:
+        pass
+    return []
+
+
+def get_forms(unit_id: str) -> List[Dict]:
+    try:
+        config = {}
+        url = config.get('api', {}).get('meta', '') + f'/units/{unit_id}/forms?filter={{"where":{{"name":"Savings"}}}}'
+        res = requests.get(url)
+        if res.status_code == 200:
+            return res.json()
+    except:
+        pass
+    return []
+
+
+def get_gauge_calcs(tags: List[str], start_time: int, end_time: int) -> Dict:
+    return {}
+
+
+def get_simple_cumulative(tags: List[str], start_time: int, end_time: int, calendar_year: str, measure_unit_dict: Dict) -> Dict:
+    return {}
+
+
+def get_running_cumulative(tags: List[str], start_time: int, end_time: int, calendar_year: str, measure_unit_dict: Dict) -> Dict:
+    return {}
+
+
+def get_measure_unit(tags: List[str]) -> Dict:
+    return {}
 
 config = {}
 

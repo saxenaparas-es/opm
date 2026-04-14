@@ -39,16 +39,21 @@ def main():
     collector = DataCollector(
         config={'api_meta': api_config.get('meta', ''), 
                 'api_query': api_config.get('query', ''),
-                'efficiency_url': api_config.get('efficiency', '')},
+                'efficiency_url': api_config.get('efficiency', ''),
+                'kairos': api_config.get('kairos', '')},
         unit_id=unit_id
     )
+    
+    kairos_url = api_config.get('kairos', '')
     
     publisher = MQTTPublisher(
         broker_address=broker_config['address'],
         port=broker_config['port'],
         username=broker_config['username'],
         password=broker_config['password'],
-        client_id=f"filter_{unit_id}"
+        client_id=f"filter_{unit_id}",
+        kairos_url=kairos_url,
+        unit_id=unit_id
     )
     publisher.connect()
     
@@ -63,11 +68,11 @@ def main():
         mapping_data = mapping[0].get("input", {})
         
         if "turbineHeatRate" in mapping_data:
-            turbine_proc = TurbineProcessor(collector, publisher, mapping_data)
+            turbine_proc = TurbineProcessor(collector, publisher, mapping_data, unit_id)
             turbine_proc.process(unit_id, post_time)
         
         if "boilerEfficiency" in mapping_data:
-            boiler_proc = BoilerProcessor(collector, publisher, mapping_data)
+            boiler_proc = BoilerProcessor(collector, publisher, mapping_data, unit_id)
             boiler_proc.process(unit_id, post_time)
     
     publisher.close()
