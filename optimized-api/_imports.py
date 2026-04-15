@@ -4,6 +4,10 @@ try:
     from iapws import IAPWS97
 except ImportError:
     IAPWS97 = None
+try:
+    from flask_cors import CORS
+except ImportError:
+    CORS = None
 import os
 from typing import Dict, Any, Optional, Callable, Union, Tuple, List
 
