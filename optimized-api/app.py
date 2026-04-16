@@ -1,7 +1,7 @@
-from optimized_api._imports import Flask, jsonify
-from optimized_api.routes.efficiency import efficiency_bp
-from optimized_api.data.fetch_utils import init_config as init_fetch_config
-from optimized_api.config.settings import getconfig
+from _imports import Flask, jsonify
+from routes.efficiency import efficiency_bp
+from data.fetch_utils import init_config as init_fetch_config
+from config.settings import getconfig
 try:
     from flask_cors import CORS
 except ImportError:

@@ -1,4 +1,4 @@
-from optimized_api._imports import os
+import os
 
 API_META = os.environ.get('API_META', '')
 API_QUERY = os.environ.get('API_QUERY', '')
@@ -36,16 +36,6 @@ def getconfig():
                 'service': SERVICE_URL
             }
         }
-
-
-def get_efficiency_url():
-    config = getconfig()
-    return config.get('api', {}).get('efficiency', '')
-
-
-def get_api_config():
-    config = getconfig()
-    return config.get('api', {})
 
 
 def get_efficiency_url():

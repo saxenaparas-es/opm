@@ -1,6 +1,6 @@
-from optimized_api._imports import Blueprint, request, jsonify, IAPWS97
-from optimized_api.core.dispatch import PROXIMATE_TYPES, BOILER_TYPES, THR_CATEGORY_DISPATCH, init_dispatch
-from optimized_api.calculations.proximate import (
+from _imports import Blueprint, request, jsonify, IAPWS97, requests
+from core.dispatch import PROXIMATE_TYPES, BOILER_TYPES, THR_CATEGORY_DISPATCH, init_dispatch
+from calculations.proximate import (
     proximate_to_ultimate_type1, proximate_to_ultimate_type2,
     proximate_to_ultimate_type3, proximate_to_ultimate_type4,
     proximate_to_ultimate_type5, proximate_to_ultimate_type6,
@@ -11,7 +11,7 @@ from optimized_api.calculations.proximate import (
     proximate_to_ultimate_type15, proximate_to_ultimate_type17,
     proximate_to_ultimate_type18
 )
-from optimized_api.calculations.boiler_efficiency import (
+from calculations.boiler_efficiency import (
     boiler_efficiency_type1, boiler_efficiency_type2,
     boiler_efficiency_type3, boiler_efficiency_type4,
     boiler_efficiency_type5, boiler_efficiency_type6,
@@ -22,17 +22,15 @@ from optimized_api.calculations.boiler_efficiency import (
     boiler_efficiency_type15, boiler_efficiency_type16,
     boiler_efficiency_type17, boiler_efficiency_type18
 )
-from optimized_api.calculations.turbine import (
+from calculations.turbine import (
     thr_cogent, thr_cogent2, thr_cogent3, thr_cogent4,
     thr_cogent5, thr_cogent6, thr_cogent7, thr_cogent8,
     thr_ingest, thr_ingest2, thr_default
 )
-from optimized_api.calculations.coal import coal_flow_calculation
-from optimized_api.calculations.plant import plant_heat_rate
-
-init_dispatch()
-
-efficiency_bp = Blueprint('efficiency', __name__)
+from calculations.coal import coal_flow_calculation
+from calculations.plant import plant_heat_rate
+from config.settings import getconfig
+from data.fetch_utils import get_heatrates, get_forms, get_gauge_calcs
 
 
 @efficiency_bp.route('/proximatetoultimate', methods=['POST'])
@@ -79,9 +77,6 @@ def plant_heat_rate_calc():
 
 @efficiency_bp.route('/design', methods=['POST'])
 def fetch_design():
-    from optimized_api._imports import requests
-    from optimized_api.config.settings import getconfig
-    
     designObj = request.json
     unitId = designObj.get("unitId", "")
     load = float(designObj.get("load", 0))
@@ -148,9 +143,6 @@ def fetch_design():
 
 @efficiency_bp.route('/bestachieved', methods=['POST'])
 def best_achieved():
-    from optimized_api._imports import requests
-    from optimized_api.config.settings import getconfig
-    
     bperfObj = request.json
     unitId = bperfObj.get("unitId", "")
     load_tag = bperfObj.get("loadTag", "load")
@@ -172,7 +164,7 @@ def best_achieved():
 
 @efficiency_bp.route('/onDemand', methods=['POST'])
 def on_demand():
-    from optimized_api.core.dispatch import PROXIMATE_TYPES, BOILER_TYPES
+    from core.dispatch import PROXIMATE_TYPES, BOILER_TYPES
     
     client_body = request.json
     
@@ -274,9 +266,6 @@ def turbine_side():
 
 @efficiency_bp.route('/powerYardstickReportCalcs', methods=['POST'])
 def power_yardstick_report():
-    from optimized_api.config.settings import getconfig
-    from optimized_api.data.fetch_utils import get_heatrates, get_forms, get_gauge_calcs
-    
     request_body = request.json
     unit_id = request_body.get("unitId", "")
     start_time = request_body.get("startTime", 0)

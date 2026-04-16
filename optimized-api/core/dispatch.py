@@ -1,4 +1,4 @@
-from optimized_api.calculations.proximate import (
+from calculations.proximate import (
     proximate_to_ultimate_type1,
     proximate_to_ultimate_type2,
     proximate_to_ultimate_type3,
@@ -82,7 +82,7 @@ THR_CATEGORY_DISPATCH = {
 
 
 def init_dispatch():
-    from optimized_api.calculations.boiler_efficiency import (
+    from calculations.boiler_efficiency import (
         boiler_efficiency_type1, boiler_efficiency_type2,
         boiler_efficiency_type3, boiler_efficiency_type4,
         boiler_efficiency_type5, boiler_efficiency_type6,
@@ -113,7 +113,7 @@ def init_dispatch():
         "type17": boiler_efficiency_type17,
         "type18": boiler_efficiency_type18,
     })
-    from optimized_api.calculations.turbine import (
+    from calculations.turbine import (
         thr_cogent, thr_cogent2, thr_cogent3, thr_cogent4,
         thr_cogent5, thr_cogent6, thr_cogent7, thr_cogent8,
         thr_ingest, thr_ingest2, thr_default

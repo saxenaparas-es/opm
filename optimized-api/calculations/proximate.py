@@ -1,4 +1,4 @@
-from optimized_api._imports import Dict, Any
+from _imports import Dict, Any
 
 
 def _validate_proximate_inputs(res: Dict[str, Any], required_keys: list) -> Dict[str, Any]:

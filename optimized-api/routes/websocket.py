@@ -1,4 +1,4 @@
-from optimized_api._imports import Blueprint, jsonify
+from _imports import Blueprint, jsonify
 
 
 websocket_bp = Blueprint('websocket', __name__)
