@@ -3,6 +3,12 @@ import pandas as pd
 import time
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+API_USERNAME = os.environ.get('API_USERNAME', '')
+API_PASSWORD = os.environ.get('API_PASSWORD', '')
 
 
 class DataCollector:
@@ -12,8 +18,10 @@ class DataCollector:
         self.api_meta = config.get('api_meta', '')
         self.api_query = config.get('api_query', '')
         self.efficiency_url = config.get('efficiency_url', '')
+        self.auth = (API_USERNAME, API_PASSWORD) if API_USERNAME and API_PASSWORD else None
     
     def get_last_values(self, taglist, end_absolute=0):
+        logger.info(f"get_last_values called with tags: {taglist}")
         end_time = int((time.time() * 1000) + (5.5 * 60 * 60 * 1000))
         if end_absolute != 0:
             one_month_ms = 30 * 24 * 60 * 60 * 1000
@@ -26,17 +34,28 @@ class DataCollector:
             query["metrics"].append({"tags": {"type": ["raw", "form", "derived"]}, "name": tag, "order": "desc", "limit": 1})
         
         try:
-            res = requests.post(self.api_query, json=query).json()
-            df = pd.DataFrame([{"time": res["queries"][0]["results"][0]["values"][0][0]}])
-            for tag_result in res["queries"]:
+            logger.info(f"Querying API: {self.api_query}")
+            res = requests.post(self.api_query, json=query, auth=self.auth)
+            logger.info(f"Query response status: {res.status_code}")
+            if res.status_code != 200:
+                logger.warning(f"API query failed: {res.text}")
+                return pd.DataFrame()
+            res_json = res.json()
+            if "queries" not in res_json or not res_json["queries"]:
+                logger.warning(f"No query results returned")
+                return pd.DataFrame()
+            df = pd.DataFrame([{"time": res_json["queries"][0]["results"][0]["values"][0][0]}])
+            for tag_result in res_json["queries"]:
                 try:
                     if df.iloc[0, 0] < tag_result["results"][0]["values"][0][0]:
                         df.iloc[0, 0] = tag_result["results"][0]["values"][0][0]
                     df.loc[0, tag_result["results"][0]["name"]] = tag_result["results"][0]["values"][0][1]
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error processing tag result: {e}")
+            logger.info(f"Returning data with columns: {list(df.columns)}")
             return df
-        except:
+        except Exception as e:
+            logger.error(f"get_last_values error: {e}")
             return pd.DataFrame()
     
     def get_threshold(self, data_tag_id):
@@ -65,11 +84,11 @@ class DataCollector:
     def fetch_mapping(self):
         try:
             url = f'{self.api_meta}/boilerStressProfiles?filter={{"where":{{"type":"efficiencyMapping", "unitsId":"{self.unit_id}"}}}}'
-            res = requests.get(url)
+            res = requests.get(url, auth=self.auth)
             if res.status_code == 200:
                 return res.json()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"fetch_mapping error: {e}")
         return []
     
     def fetch_turbine_side_mapping(self):
@@ -86,11 +105,15 @@ class DataCollector:
     def call_efficiency_api(self, endpoint, payload):
         try:
             url = f'{self.efficiency_url}/{endpoint}'
-            res = requests.post(url, json=payload)
+            logger.info(f"Calling efficiency API: {url} with payload: {payload}")
+            res = requests.post(url, json=payload, auth=self.auth)
+            logger.info(f"Efficiency API response status: {res.status_code}")
             if res.status_code == 200:
                 return res.json()
-        except:
-            pass
+            else:
+                logger.warning(f"Efficiency API returned status {res.status_code}: {res.text}")
+        except Exception as e:
+            logger.error(f"call_efficiency_api error: {e}")
         return None
     
     def call_design_api(self, turbine: dict, realtime_data: dict):
@@ -104,13 +127,13 @@ class DataCollector:
                 "unitId": self.unit_id
             }
             url = f'{self.efficiency_url}/design'
-            res = requests.post(url, json=design_payload)
+            res = requests.post(url, json=design_payload, auth=self.auth)
             if res.status_code == 200:
                 result = res.json()
                 result["category"] = turbine.get("category", "cogent")
                 return result
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"call_design_api error: {e}")
         return None
     
     def call_bestachieved_api(self, turbine: dict, realtime_data: dict):

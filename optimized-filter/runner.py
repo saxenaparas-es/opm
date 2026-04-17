@@ -20,6 +20,7 @@ def get_run_mode():
 
 def main():
     config = getconfig()
+    logger.info(f"Full config: {config}")
     unit_id = os.environ.get('UNIT_ID', '')
     
     if not unit_id:
@@ -55,9 +56,21 @@ def main():
         kairos_url=kairos_url,
         unit_id=unit_id
     )
-    publisher.connect()
+    
+    try:
+        publisher.connect()
+        logger.info("MQTT connected successfully")
+    except Exception as e:
+        logger.warning(f"MQTT connection failed: {e}. Continuing without MQTT.")
+        publisher = None
     
     mapping = collector.fetch_mapping()
+    logger.info(f"Fetched mapping for unit {unit_id}: {len(mapping)} records")
+    logger.info(f"Full mapping[0] keys: {list(mapping[0].keys()) if mapping else []}")
+    logger.info(f"Mapping[0] type: {type(mapping[0]) if mapping else 'None'}")
+    if mapping and len(mapping) > 0:
+        logger.info(f"Mapping[0] content: {str(mapping[0])[:500]}")
+    
     if not mapping:
         logger.warning(f"No mapping found for unit {unit_id}")
         return
@@ -65,17 +78,23 @@ def main():
     post_time = int((int(datetime.now().timestamp() / 60) * 60) * 1000)
     
     if mapping and len(mapping) > 0:
-        mapping_data = mapping[0].get("input", {})
+        mapping_data = mapping[0].get("output", {})
+        if not mapping_data:
+            mapping_data = mapping[0].get("input", {})
+        logger.info(f"Mapping data keys: {list(mapping_data.keys())}")
         
         if "turbineHeatRate" in mapping_data:
+            logger.info("Processing turbineHeatRate...")
             turbine_proc = TurbineProcessor(collector, publisher, mapping_data, unit_id)
             turbine_proc.process(unit_id, post_time)
         
         if "boilerEfficiency" in mapping_data:
+            logger.info("Processing boilerEfficiency...")
             boiler_proc = BoilerProcessor(collector, publisher, mapping_data, unit_id)
             boiler_proc.process(unit_id, post_time)
     
-    publisher.close()
+    if publisher:
+        publisher.close()
     logger.info(f"Completed processing for unit {unit_id}")
 
 
