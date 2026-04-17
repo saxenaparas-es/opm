@@ -130,4 +130,9 @@ def init_dispatch():
         "ingest": thr_ingest,
         "ingest2": thr_ingest2,
         "default": thr_default,
+        "pressureInMpa": thr_default,
+        "pressureInKsc": thr_default,
+        "pressureInKsc1": thr_default,
+        "lpg_type": thr_default,
+        "DBPower": thr_default,
     })

@@ -77,25 +77,36 @@ class TurbineProcessor:
             
             realtime_dict = realtime_data.to_dict(orient="records")[0]
             
-            skip_flag = self.check_threshold(turbine, realtime_dict)
+            names = {}
+            for key, tag_list in turbine.get("realtime", {}).items():
+                if isinstance(tag_list, list) and tag_list:
+                    names[tag_list[0]] = key
+            
+            renamed_data = {}
+            for old_key, value in realtime_dict.items():
+                if old_key != "time":
+                    new_key = names.get(old_key, old_key)
+                    renamed_data[new_key] = value
+            
+            skip_flag = self.check_threshold(turbine, renamed_data)
             if skip_flag:
                 continue
             
-            load_value = realtime_dict.get(turbine.get("load", [None])[0], 0) if turbine.get("load") else 0
+            load_value = renamed_data.get("load", 0)
             
-            request_body = {k: v for k, v in realtime_dict.items() if k != "time"}
+            request_body = {k: v for k, v in renamed_data.items() if k != "time"}
             if turbine.get("constants"):
                 request_body.update(turbine["constants"])
             request_body["category"] = turbine.get("category", "cogent")
             request_body["load"] = load_value
             
-            design_body = {k: v for k, v in realtime_dict.items() if k != "time"}
+            design_body = {k: v for k, v in renamed_data.items() if k != "time"}
             if turbine.get("constants"):
                 design_body.update(turbine["constants"])
             design_body["category"] = turbine.get("category", "cogent")
             design_body["load"] = load_value
             
-            bp_body = {k: v for k, v in realtime_dict.items() if k != "time"}
+            bp_body = {k: v for k, v in renamed_data.items() if k != "time"}
             if turbine.get("constants"):
                 bp_body.update(turbine["constants"])
             bp_body["category"] = turbine.get("category", "cogent")
@@ -171,12 +182,29 @@ class BoilerProcessor:
             if fuel_tags:
                 proximate_data = self.collector.get_last_values(fuel_tags)
                 if not proximate_data.empty:
-                    request_body = proximate_data.to_dict(orient="records")[0]
+                    proximate_dict = proximate_data.to_dict(orient="records")[0]
+                    
+                    fuel_names = {}
+                    for key, tag in fuel_proximate.items():
+                        if isinstance(tag, list) and tag:
+                            fuel_names[tag[0]] = key
+                    
+                    renamed_proximate = {}
+                    for old_key, value in proximate_dict.items():
+                        if old_key != "time":
+                            new_key = fuel_names.get(old_key, old_key)
+                            renamed_proximate[new_key] = value
                     
                     fuel_config = boiler.get("fuelUltimateConfig")
                     if fuel_config:
-                        proximate_data = self.apply_fuel_config(proximate_data, fuel_config)
+                        for col in renamed_proximate:
+                            if col in fuel_config.get("fuelFlow", []):
+                                renamed_proximate[col] = max(0, renamed_proximate[col])
+                        total_fuel = sum(renamed_proximate.get(f, 0) for f in fuel_config.get("fuelFlow", []))
+                        if total_fuel > 0:
+                            renamed_proximate["coalFlow"] = total_fuel
                     
+                    request_body = renamed_proximate
                     request_body["type"] = boiler.get("type", "type1")
                     ultimate_result = self.collector.call_efficiency_api("proximatetoultimate", request_body)
             
@@ -194,15 +222,26 @@ class BoilerProcessor:
             
             realtime_dict = realtime_data.to_dict(orient="records")[0]
             
-            request_body = {k: v for k, v in realtime_dict.items() if k != "time"}
+            names = {}
+            for key, tag_list in boiler.get("realtime", {}).items():
+                if isinstance(tag_list, list) and tag_list:
+                    names[tag_list[0]] = key
+            
+            renamed_data = {}
+            for old_key, value in realtime_dict.items():
+                if old_key != "time":
+                    new_key = names.get(old_key, old_key)
+                    renamed_data[new_key] = value
+            
+            request_body = {k: v for k, v in renamed_data.items() if k != "time"}
             request_body.update(boiler.get("assumptions", {}))
             request_body["type"] = boiler.get("type", "type1")
             
-            design_request = {k: v for k, v in realtime_dict.items() if k != "time"}
+            design_request = {k: v for k, v in renamed_data.items() if k != "time"}
             design_request.update(boiler.get("assumptions", {}))
             design_request["type"] = boiler.get("type", "type1")
             
-            bp_request = {k: v for k, v in realtime_dict.items() if k != "time"}
+            bp_request = {k: v for k, v in renamed_data.items() if k != "time"}
             bp_request.update(boiler.get("assumptions", {}))
             bp_request["type"] = boiler.get("type", "type1")
             
@@ -221,8 +260,8 @@ class BoilerProcessor:
                 }
             
             boiler_result = self.collector.call_efficiency_api("boiler", request_body)
-            boiler_design_result = self.collector.call_design_api_boiler(boiler, realtime_dict)
-            boiler_bp_result = self.collector.call_bestachieved_api_boiler(boiler, realtime_dict)
+            boiler_design_result = self.collector.call_design_api_boiler(boiler, renamed_data)
+            boiler_bp_result = self.collector.call_bestachieved_api_boiler(boiler, renamed_data)
             
             if boiler_result:
                 for key, tag in boiler.get("outputs", {}).items():
