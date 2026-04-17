@@ -2,6 +2,7 @@ from _imports import Flask, jsonify
 from routes.efficiency import efficiency_bp
 from data.fetch_utils import init_config as init_fetch_config
 from config.settings import getconfig
+from core.dispatch import init_dispatch
 try:
     from flask_cors import CORS
 except ImportError:
@@ -37,4 +38,5 @@ app.register_blueprint(efficiency_bp, url_prefix='/efficiency')
 if __name__ == '__main__':
     config = getconfig()
     init_fetch_config(config)
+    init_dispatch()
     app.run(host='0.0.0.0', port=5000, debug=True)

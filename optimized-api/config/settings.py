@@ -1,4 +1,10 @@
 import os
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parent.parent / '.env'
+if env_path.exists():
+    from dotenv import load_dotenv
+    load_dotenv(env_path)
 
 API_META = os.environ.get('API_META', '')
 API_QUERY = os.environ.get('API_QUERY', '')

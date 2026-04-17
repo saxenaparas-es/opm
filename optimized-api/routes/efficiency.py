@@ -32,6 +32,8 @@ from calculations.plant import plant_heat_rate
 from config.settings import getconfig
 from data.fetch_utils import get_heatrates, get_forms, get_gauge_calcs
 
+efficiency_bp = Blueprint('efficiency', __name__)
+
 
 @efficiency_bp.route('/proximatetoultimate', methods=['POST'])
 def proximate_to_ultimate():

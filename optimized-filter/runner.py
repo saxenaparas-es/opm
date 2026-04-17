@@ -3,10 +3,10 @@ import time
 import logging
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
-from optimized_filter.config.settings import getconfig
-from optimized_filter.data.collectors import DataCollector
-from optimized_filter.mqtt.client import MQTTPublisher
-from optimized_filter.processors.turbine import TurbineProcessor, BoilerProcessor
+from config.settings import getconfig
+from data.collectors import DataCollector
+from mqtt.client import MQTTPublisher
+from processors.turbine import TurbineProcessor, BoilerProcessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
