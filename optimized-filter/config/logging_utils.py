@@ -1,6 +1,6 @@
 """
-Comprehensive Logging Utility for optimized-api
-================================================
+Comprehensive Logging Utility for optimized-filter
+=================================================
 Provides structured logging with clear visual separation for debugging and monitoring.
 """
 
@@ -12,34 +12,6 @@ from datetime import datetime
 from functools import wraps
 import traceback
 
-# Define custom log levels for better categorization
-LOG_LEVEL_API = 25  # Between INFO(20) and WARNING(30)
-LOG_LEVEL_DATA = 25  # For data flow logging
-logging.addLevelName(LOG_LEVEL_API, "API")
-logging.addLevelName(LOG_LEVEL_DATA, "DATA")
-
-
-class ColoredFormatter(logging.Formatter):
-    """Custom formatter with colors for different log levels"""
-    
-    COLORS = {
-        'DEBUG': '\033[36m',     # Cyan
-        'INFO': '\033[32m',      # Green
-        'API': '\033[34m',       # Blue
-        'DATA': '\033[35m',      # Magenta
-        'WARNING': '\033[33m',   # Yellow
-        'ERROR': '\033[31m',     # Red
-        'CRITICAL': '\033[35;1m', # Bold Magenta
-        'RESET': '\033[0m'
-    }
-    
-    def format(self, record):
-        # Add color codes
-        if hasattr(record, 'levelname') and record.levelname in self.COLORS:
-            record.levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.COLORS['RESET']}"
-        return super().format(record)
-
-
 def setup_logging(debug=False, log_file=None):
     """
     Setup logging configuration for the application.
@@ -50,29 +22,20 @@ def setup_logging(debug=False, log_file=None):
     """
     level = logging.DEBUG if debug else logging.INFO
     
-    # Create formatters
     detailed_formatter = logging.Formatter(
         fmt='%(asctime)s | %(levelname)-25s | %(name)-20s | %(funcName)-30s | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    simple_formatter = logging.Formatter(
-        fmt='%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%H:%M:%S'
-    )
-    
-    # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     console_handler.setFormatter(detailed_formatter)
     
-    # Root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
-    root_logger.handlers = []  # Clear existing handlers
+    root_logger.handlers = []
     root_logger.addHandler(console_handler)
     
-    # File handler (if specified)
     if log_file:
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.DEBUG)
@@ -82,36 +45,21 @@ def setup_logging(debug=False, log_file=None):
     return root_logger
 
 
-# Initialize default logger
-logger = logging.getLogger("optimized_api")
+logger = logging.getLogger("optimized_filter")
 
-
-# =============================================================================
-# Decorators for Function Logging
-# =============================================================================
 
 def log_function_call(logger_instance=None):
-    """
-    Decorator to automatically log function entry, exit, errors and timing.
-    
-    Usage:
-        @log_function_call()
-        def my_function(arg1, arg2):
-            ...
-    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             _logger = logger_instance or logger
             func_name = func.__name__
             
-            # Format arguments for logging
             args_repr = [repr(a) for a in args]
             kwargs_repr = [f"{k}={repr(v)}" for k, v in kwargs.items()]
             all_args = args_repr + kwargs_repr
             args_str = ", ".join(all_args) if all_args else ""
             
-            # Log function entry with separator
             _logger.info(f"{'='*60}")
             _logger.info(f"▶ FUNCTION START: {func_name}")
             _logger.info(f"  Arguments: {args_str}")
@@ -123,7 +71,6 @@ def log_function_call(logger_instance=None):
                 result = func(*args, **kwargs)
                 elapsed = (datetime.now() - start_time).total_seconds()
                 
-                # Log function exit
                 _logger.info(f"{'─'*60}")
                 _logger.info(f"✓ FUNCTION END: {func_name} (took {elapsed:.4f}s)")
                 _logger.info(f"{'='*60}")
@@ -143,17 +90,11 @@ def log_function_call(logger_instance=None):
     return decorator
 
 
-# =============================================================================
-# Utility Logging Functions
-# =============================================================================
-
 def log_request(endpoint, method="POST", data=None, logger_instance=None):
-    """Log incoming API request"""
     _logger = logger_instance or logger
     _logger.info(f"{'─'*60}")
     _logger.info(f"📥 REQUEST RECEIVED | Endpoint: {endpoint} | Method: {method}")
     if data:
-        # Truncate long data for readability
         data_str = json.dumps(data, indent=2)
         if len(data_str) > 500:
             data_str = data_str[:500] + "\n    ... (truncated)"
@@ -162,10 +103,8 @@ def log_request(endpoint, method="POST", data=None, logger_instance=None):
 
 
 def log_response(endpoint, status_code, data=None, logger_instance=None):
-    """Log outgoing API response"""
     _logger = logger_instance or logger
     
-    # Determine status color/info
     if 200 <= status_code < 300:
         status_str = f"✓ {status_code} OK"
     elif 400 <= status_code < 500:
@@ -185,7 +124,6 @@ def log_response(endpoint, status_code, data=None, logger_instance=None):
 
 
 def log_error(error, context="", logger_instance=None):
-    """Log error with context"""
     _logger = logger_instance or logger
     _logger.error(f"{'✗'*30}")
     _logger.error(f"ERROR in {context}: {type(error).__name__}")
@@ -195,32 +133,21 @@ def log_error(error, context="", logger_instance=None):
 
 
 def log_warning(message, logger_instance=None):
-    """Log warning message"""
     _logger = logger_instance or logger
     _logger.warning(f"⚠ {message}")
 
 
 def log_info(message, logger_instance=None):
-    """Log info message"""
     _logger = logger_instance or logger
     _logger.info(f"ℹ {message}")
 
 
 def log_debug(message, logger_instance=None):
-    """Log debug message"""
     _logger = logger_instance or logger
     _logger.debug(f"🔍 {message}")
 
 
 def log_data_flow(direction, endpoint, data, logger_instance=None):
-    """
-    Log data flow (sent/received) with clear visual distinction.
-    
-    Args:
-        direction: "IN" for received, "OUT" for sent
-        endpoint: API endpoint or function name
-        data: The data being logged
-    """
     _logger = logger_instance or logger
     
     arrow = "→" if direction == "OUT" else "←"
@@ -241,7 +168,6 @@ def log_data_flow(direction, endpoint, data, logger_instance=None):
 
 
 def log_variable(name, value, logger_instance=None):
-    """Log a variable with its value"""
     _logger = logger_instance or logger
     value_str = str(value)
     if len(value_str) > 200:
@@ -250,7 +176,6 @@ def log_variable(name, value, logger_instance=None):
 
 
 def log_dict_variables(data, prefix="", logger_instance=None):
-    """Log all key-value pairs in a dictionary"""
     _logger = logger_instance or logger
     for key, value in data.items():
         value_str = str(value)
@@ -260,41 +185,33 @@ def log_dict_variables(data, prefix="", logger_instance=None):
 
 
 def log_separator(char="-", length=60, logger_instance=None):
-    """Log a visual separator"""
     _logger = logger_instance or logger
     _logger.info(char * length)
 
 
 def log_section(title, logger_instance=None):
-    """Log a section header"""
     _logger = logger_instance or logger
     _logger.info(f"{'#'*60}")
     _logger.info(f"# {title}")
     _logger.info(f"{'#'*60}")
 
 
-# =============================================================================
-# Context-Specific Loggers
-# =============================================================================
-
 def get_logger(name):
-    """Get a logger with a specific name"""
-    return logging.getLogger(f"optimized_api.{name}")
+    return logging.getLogger(f"optimized_filter.{name}")
 
 
-# Pre-configured loggers for different modules
-api_logger = logging.getLogger("optimized_api.api")
-calc_logger = logging.getLogger("optimized_api.calcs")
-dispatch_logger = logging.getLogger("optimized_api.dispatch")
-data_logger = logging.getLogger("optimized_api.data")
+runner_logger = logging.getLogger("optimized_filter.runner")
+collector_logger = logging.getLogger("optimized_filter.collector")
+processor_logger = logging.getLogger("optimized_filter.processor")
+mqtt_logger = logging.getLogger("optimized_filter.mqtt")
 
 
 __all__ = [
     'logger',
-    'api_logger',
-    'calc_logger', 
-    'dispatch_logger',
-    'data_logger',
+    'runner_logger',
+    'collector_logger',
+    'processor_logger',
+    'mqtt_logger',
     'setup_logging',
     'log_function_call',
     'log_request',

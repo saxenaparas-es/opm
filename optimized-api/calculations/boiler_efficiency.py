@@ -1,19 +1,23 @@
 from _imports import math
-
+from core.logging_utils import logger, log_section, log_variable, log_warning, log_debug
 
 def _boiler_base_required(res, hydrogen_factor=0.348, oxygen_factor=0.0435):
+    log_debug(f"_boiler_base_required: carbon={res.get('carbon')}, hydrogen={res.get('hydrogen')}")
     return 0.116 * res['carbon'] + hydrogen_factor * res['hydrogen'] + 0.0435 * res['coalSulphur'] - oxygen_factor * res['oxygen']
 
 
 def _boiler_excess_air(o2):
+    log_debug(f"_boiler_excess_air: o2={o2}")
     return (o2 * 100) / (21 - o2)
 
 
 def _boiler_actual_air(theo_air, excess_air):
+    log_debug(f"_boiler_actual_air: theo_air={theo_air}, excess_air={excess_air}")
     return (1 + excess_air / 100) * theo_air
 
 
 def _boiler_temp_diff(flue_temp, ambient_temp):
+    log_debug(f"_boiler_temp_diff: flue={flue_temp}, ambient={ambient_temp}")
     return flue_temp - ambient_temp
 
 
@@ -54,9 +58,13 @@ def _boiler_loss_h2o_in_air(humidity_factor, actual_air, temp_diff, gcv):
 
 
 def boiler_efficiency_type1(res):
+    log_section("BOILER EFFICIENCY TYPE1")
+    log_variable("input_keys", list(res.keys()))
+    
     required = ["carbon", "hydrogen", "coalSulphur", "oxygen", "aphFlueGasOutletO2", "coalMoist", "aphFlueGasOutletTemp", "ambientAirTemp", "coalGCV", "coalAsh", "airHumidityFactor", "LossUnaccounted", "LossDueToRadiation", "flyAshUnburntCarbon", "bedAshUnburntCarbon"]
     for i in required:
         if i not in res:
+            log_warning(f"Missing required: {i}")
             return {"error": str(i) + " missing"}, 400
     
     temp_diff = _boiler_temp_diff(res['aphFlueGasOutletTemp'], res['ambientAirTemp'])

@@ -18,6 +18,9 @@ from calculations.proximate import (
     proximate_to_ultimate_type17,
     proximate_to_ultimate_type18,
 )
+from core.logging_utils import logger, log_section, log_variable, log_info
+
+log_section("INITIALIZING DISPATCH TABLES")
 
 PROXIMATE_TYPES = {
     "type1": proximate_to_ultimate_type1,
@@ -40,6 +43,8 @@ PROXIMATE_TYPES = {
     "type18": proximate_to_ultimate_type18,
 }
 
+log_variable("PROXIMATE_TYPES", list(PROXIMATE_TYPES.keys()))
+
 BOILER_TYPES = {
     "type1": None,
     "type2": None,
@@ -61,6 +66,8 @@ BOILER_TYPES = {
     "type18": None,
 }
 
+log_variable("BOILER_TYPES (initial)", list(BOILER_TYPES.keys()))
+
 THR_CATEGORY_DISPATCH = {
     "cogent": None,
     "cogent2": None,
@@ -80,8 +87,13 @@ THR_CATEGORY_DISPATCH = {
     "default": None,
 }
 
+log_variable("THR_CATEGORY_DISPATCH (initial)", list(THR_CATEGORY_DISPATCH.keys()))
+
 
 def init_dispatch():
+    log_section("INITIALIZING DISPATCH HANDLERS")
+    log_info("Loading boiler efficiency handlers...")
+    
     from calculations.boiler_efficiency import (
         boiler_efficiency_type1, boiler_efficiency_type2,
         boiler_efficiency_type3, boiler_efficiency_type4,
@@ -113,6 +125,9 @@ def init_dispatch():
         "type17": boiler_efficiency_type17,
         "type18": boiler_efficiency_type18,
     })
+    log_variable("BOILER_TYPES (loaded)", list(BOILER_TYPES.keys()))
+    
+    log_info("Loading turbine heat rate handlers...")
     from calculations.turbine import (
         thr_cogent, thr_cogent2, thr_cogent3, thr_cogent4,
         thr_cogent5, thr_cogent6, thr_cogent7, thr_cogent8,
@@ -136,3 +151,6 @@ def init_dispatch():
         "lpg_type": thr_default,
         "DBPower": thr_default,
     })
+    log_variable("THR_CATEGORY_DISPATCH (loaded)", list(THR_CATEGORY_DISPATCH.keys()))
+    
+    log_info("DISPATCH INITIALIZATION COMPLETE")

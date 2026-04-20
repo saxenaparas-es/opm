@@ -2,15 +2,26 @@ import json
 import time
 from data.collectors import DataCollector
 from mqtt.client import MQTTPublisher
+from config.logging_utils import (
+    logger, log_section, log_variable, log_info, log_warning, log_error,
+    log_debug, processor_logger as pl
+)
 
 
 class TurbineProcessor:
     def __init__(self, collector: DataCollector, publisher: MQTTPublisher, mapping: dict, unit_id: str):
+        pl.info("="*60)
+        pl.info("INITIALIZING TURBINE PROCESSOR")
+        
         self.collector = collector
         self.publisher = publisher
         self.mapping = mapping
         self.unit_id = unit_id
         self.topic_line = f"u/{unit_id}/"
+        
+        log_variable("unit_id", unit_id)
+        log_variable("mapping_keys", list(mapping.keys()))
+        
         self.plant_heat_rate = {
             "realtime": {
                 "turbineHeatRate": [],
@@ -31,8 +42,13 @@ class TurbineProcessor:
                 "turbineSteamFlow": []
             }
         }
+        
+        pl.info("TurbineProcessor initialized")
     
     def check_threshold(self, turbine: dict, realtime_data: dict) -> bool:
+        pl.info("▶ check_threshold START")
+        log_variable("realtime_data_keys", list(realtime_data.keys()))
+        
         skip_flag = False
         threshold_tags = []
         threshold_names = {}
@@ -62,25 +78,49 @@ class TurbineProcessor:
         return skip_flag
     
     def process(self, unit_id, post_time):
-        for turbine in self.mapping.get("turbineHeatRate", []):
+        pl.info("="*60)
+        pl.info("▶ TURBINE PROCESSOR - process() START")
+        log_variable("unit_id", unit_id)
+        log_variable("post_time", post_time)
+        
+        turbines_list = self.mapping.get("turbineHeatRate", [])
+        log_variable("turbines_count", len(turbines_list))
+        
+        for idx, turbine in enumerate(turbines_list):
+            pl.info(f"{'─'*40}")
+            pl.info(f"PROCESSING TURBINE #{idx+1}")
+            
+            turbine_category = turbine.get("category", "cogent")
+            log_variable("turbine_category", turbine_category)
+            log_variable("turbine_keys", list(turbine.keys()))
+            
             tags = []
             for key, tag_list in turbine.get("realtime", {}).items():
                 if isinstance(tag_list, list):
                     tags.extend(tag_list)
             
+            log_variable("total_tags", len(tags))
+            
             if not tags:
+                log_warning("No tags found for this turbine, skipping")
                 continue
             
             realtime_data = self.collector.get_last_values(tags)
             if realtime_data.empty:
+                log_warning("No data returned from collector, skipping")
                 continue
             
+            log_variable("data_columns", list(realtime_data.columns))
+            
             realtime_dict = realtime_data.to_dict(orient="records")[0]
+            log_variable("realtime_dict_keys", list(realtime_dict.keys()))
             
             names = {}
             for key, tag_list in turbine.get("realtime", {}).items():
                 if isinstance(tag_list, list) and tag_list:
                     names[tag_list[0]] = key
+            
+            log_variable("tag_mapping_count", len(names))
             
             renamed_data = {}
             for old_key, value in realtime_dict.items():
@@ -88,17 +128,23 @@ class TurbineProcessor:
                     new_key = names.get(old_key, old_key)
                     renamed_data[new_key] = value
             
+            log_variable("renamed_data_keys", list(renamed_data.keys()))
+            
             skip_flag = self.check_threshold(turbine, renamed_data)
             if skip_flag:
+                log_warning("Skipping due to threshold check")
                 continue
             
             load_value = renamed_data.get("load", 0)
+            log_variable("load_value", load_value)
             
             request_body = {k: v for k, v in renamed_data.items() if k != "time"}
             if turbine.get("constants"):
                 request_body.update(turbine["constants"])
             request_body["category"] = turbine.get("category", "cogent")
             request_body["load"] = load_value
+            
+            log_variable("request_body_keys", list(request_body.keys()))
             
             design_body = {k: v for k, v in renamed_data.items() if k != "time"}
             if turbine.get("constants"):
@@ -112,8 +158,13 @@ class TurbineProcessor:
             bp_body["category"] = turbine.get("category", "cogent")
             bp_body["load"] = load_value
             
+            pl.info("Calling THR efficiency API...")
             thr_result = self.collector.call_efficiency_api("thr", request_body)
+            
+            pl.info("Calling design API...")
             thr_design_result = self.collector.call_design_api(turbine, realtime_dict)
+            
+            pl.info("Calling best achieved API...")
             thr_bp_result = self.collector.call_bestachieved_api(turbine, realtime_dict)
             
             if thr_result:
@@ -150,11 +201,19 @@ class TurbineProcessor:
 
 class BoilerProcessor:
     def __init__(self, collector: DataCollector, publisher: MQTTPublisher, mapping: dict, unit_id: str):
+        pl.info("="*60)
+        pl.info("INITIALIZING BOILER PROCESSOR")
+        
         self.collector = collector
         self.publisher = publisher
         self.mapping = mapping
         self.unit_id = unit_id
         self.topic_line = f"u/{unit_id}/"
+        
+        log_variable("unit_id", unit_id)
+        log_variable("mapping_keys", list(mapping.keys()))
+        
+        pl.info("BoilerProcessor initialized")
     
     def apply_fuel_config(self, data, fuel_config: dict):
         if not fuel_config:

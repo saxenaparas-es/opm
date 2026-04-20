@@ -7,9 +7,12 @@ from config.settings import getconfig
 from data.collectors import DataCollector
 from mqtt.client import MQTTPublisher
 from processors.turbine import TurbineProcessor, BoilerProcessor
+from config.logging_utils import (
+    logger, log_section, log_variable, log_info, log_warning, log_error,
+    setup_logging, runner_logger as rl
+)
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+log_section("OPTIMIZED FILTER - INITIALIZING")
 
 
 def get_run_mode():
@@ -19,12 +22,19 @@ def get_run_mode():
 
 
 def main():
+    rl.info("="*60)
+    rl.info("▶ MAIN FUNCTION START")
+    rl.info("="*60)
+    
     config = getconfig()
-    logger.info(f"Full config: {config}")
+    rl.info("Configuration loaded")
+    log_variable("config_keys", list(config.keys()) if config else "empty")
+    
     unit_id = os.environ.get('UNIT_ID', '')
+    log_variable("UNIT_ID", unit_id)
     
     if not unit_id:
-        logger.error("UNIT_ID not set")
+        log_error(Exception("UNIT_ID not set"), "runner.main")
         return
     
     unit_config = getconfig(unit_id)
@@ -34,9 +44,14 @@ def main():
         'username': unit_config.get('BROKER_USERNAME', ''),
         'password': unit_config.get('BROKER_PASSWORD', '')
     }
+    log_variable("BROKER_ADDRESS", broker_config['address'])
+    log_variable("BROKER_PORT", broker_config['port'])
     
     api_config = unit_config.get('api', {})
+    log_variable("api_config_keys", list(api_config.keys()))
+    log_variable("EFFICIENCY_URL", api_config.get('efficiency', ''))
     
+    rl.info("Creating DataCollector...")
     collector = DataCollector(
         config={'api_meta': api_config.get('meta', ''), 
                 'api_query': api_config.get('query', ''),
@@ -44,9 +59,11 @@ def main():
                 'kairos': api_config.get('kairos', '')},
         unit_id=unit_id
     )
+    rl.info("DataCollector created")
     
     kairos_url = api_config.get('kairos', '')
     
+    rl.info("Creating MQTTPublisher...")
     publisher = MQTTPublisher(
         broker_address=broker_config['address'],
         port=broker_config['port'],
@@ -56,53 +73,66 @@ def main():
         kairos_url=kairos_url,
         unit_id=unit_id
     )
+    rl.info("MQTTPublisher created")
     
     try:
         publisher.connect()
-        logger.info("MQTT connected successfully")
+        rl.info("✓ MQTT connected successfully")
     except Exception as e:
-        logger.warning(f"MQTT connection failed: {e}. Continuing without MQTT.")
+        log_warning(f"MQTT connection failed: {e}. Continuing without MQTT.")
         publisher = None
     
+    rl.info("Fetching mapping from API...")
     mapping = collector.fetch_mapping()
-    logger.info(f"Fetched mapping for unit {unit_id}: {len(mapping)} records")
-    logger.info(f"Full mapping[0] keys: {list(mapping[0].keys()) if mapping else []}")
-    logger.info(f"Mapping[0] type: {type(mapping[0]) if mapping else 'None'}")
+    log_variable("mapping_records_count", len(mapping))
+    log_variable("mapping[0]_keys", list(mapping[0].keys()) if mapping else [])
+    
     if mapping and len(mapping) > 0:
-        logger.info(f"Mapping[0] content: {str(mapping[0])[:500]}")
+        mapping_content = str(mapping[0])
+        log_variable("mapping_content_preview", mapping_content[:300] + "..." if len(mapping_content) > 300 else mapping_content)
     
     if not mapping:
-        logger.warning(f"No mapping found for unit {unit_id}")
+        log_warning(f"No mapping found for unit {unit_id}")
         return
     
     post_time = int((int(datetime.now().timestamp() / 60) * 60) * 1000)
+    log_variable("post_time", post_time)
     
     if mapping and len(mapping) > 0:
         mapping_data = mapping[0].get("output", {})
         if not mapping_data:
             mapping_data = mapping[0].get("input", {})
-        logger.info(f"Mapping data keys: {list(mapping_data.keys())}")
+        log_variable("mapping_data_keys", list(mapping_data.keys()))
         
         if "turbineHeatRate" in mapping_data:
-            logger.info("Processing turbineHeatRate...")
+            log_section("PROCESSING TURBINE HEAT RATE")
             turbine_proc = TurbineProcessor(collector, publisher, mapping_data, unit_id)
             turbine_proc.process(unit_id, post_time)
+            rl.info("Turbine heat rate processing complete")
         
         if "boilerEfficiency" in mapping_data:
-            logger.info("Processing boilerEfficiency...")
+            log_section("PROCESSING BOILER EFFICIENCY")
             boiler_proc = BoilerProcessor(collector, publisher, mapping_data, unit_id)
             boiler_proc.process(unit_id, post_time)
+            rl.info("Boiler efficiency processing complete")
     
     if publisher:
         publisher.close()
-    logger.info(f"Completed processing for unit {unit_id}")
+        rl.info("MQTT connection closed")
+    
+    rl.info(f"✓ Completed processing for unit {unit_id}")
+    rl.info("="*60)
+    rl.info("▶ MAIN FUNCTION END")
+    rl.info("="*60)
 
 
 if __name__ == '__main__':
     run_mode = get_run_mode()
-    logger.info(f"Starting in {run_mode} mode")
+    log_section(f"STARTING IN {run_mode.upper()} MODE")
+    log_variable("run_mode", run_mode)
     
     frequency = int(os.environ.get('FREQUENCY', '300'))
+    log_variable("frequency_seconds", frequency)
     
     if run_mode == 'cron':
         main()
@@ -110,7 +140,7 @@ if __name__ == '__main__':
         scheduler = BackgroundScheduler()
         scheduler.add_job(main, 'interval', seconds=frequency, misfire_grace_time=None)
         scheduler.start()
-        logger.info(f"Scheduler started with {frequency}s interval")
+        log_info(f"Scheduler started with {frequency}s interval")
         
         while True:
             time.sleep(60)

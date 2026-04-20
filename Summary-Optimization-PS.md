@@ -748,6 +748,418 @@ export UNIT_ID=unit_001
 
 ---
 
+## 🧪 Developer Testing Guide
+
+### Prerequisites
+
+1. **Python 3.8+** - This project uses Python 3 (not python)
+2. **Virtual Environment** - Recommended to isolate dependencies
+
+### Setup Instructions
+
+#### 1. Clone and Navigate
+```bash
+cd /Users/admin/Desktop/Paras/api&b
+```
+
+#### 2. Create and Activate Virtual Environment
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On macOS/Linux
+# venv\Scripts\activate  # On Windows
+```
+
+#### 3. Install Dependencies
+```bash
+# Install from requirements files if they exist
+pip install -r optimized-api/requirements.txt
+pip install -r optimized-filter/requirements.txt
+
+# Or install core dependencies manually
+pip install flask requests paho-mqtt apscheduler iapws97 python-dotenv
+```
+
+#### 4. Configure Environment Variables
+
+**For optimized-api:**
+```bash
+cd optimized-api
+cp .env.example .env  # If template exists
+# Edit .env with your API credentials
+```
+
+**For optimized-filter:**
+```bash
+cd ../optimized-filter
+cp .env.example .env  # If template exists
+# Edit .env with your MQTT and API credentials
+```
+
+### Running the System
+
+#### Option 1: Run API and Filter Separately
+
+**Terminal 1 - Start API:**
+```bash
+cd /Users/admin/Desktop/Paras/api&b/optimized-api
+../venv/bin/python3 app.py
+```
+- API will be available at `http://127.0.0.1:5000`
+- Test health: `curl http://127.0.0.1:5000/efficiency/test`
+
+**Terminal 2 - Start Filter:**
+```bash
+cd /Users/admin/Desktop/Paras/api&b/optimized-filter
+../venv/bin/python3 runner.py
+```
+- Filter will fetch data and send to API every 3 seconds (in server mode)
+
+#### Option 2: Test End-to-End Flow
+
+```bash
+# 1. Start API first (it must be running before filter starts)
+cd /Users/admin/Desktop/Paras/api&b/optimized-api
+../venv/bin/python3 app.py &
+
+# 2. Wait 2-3 seconds for API to start
+
+# 3. Run filter
+cd /Users/admin/Desktop/Paras/api&b/optimized-filter
+../venv/bin/python3 runner.py
+```
+
+### Testing Individual API Endpoints
+
+```bash
+# Test turbine heat rate
+curl -X POST http://127.0.0.1:5000/efficiency/thr \
+  -H "Content-Type: application/json" \
+  -d '{
+    "category": "pressureInMpa",
+    "FWFinalPress": 15.2,
+    "load": 180,
+    "steamTempMS": 530,
+    "steamPressureMS": 14.5
+  }'
+
+# Test boiler efficiency
+curl -X POST http://127.0.0.1:5000/efficiency/boiler \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "type1",
+    "fdFlow": 480,
+    "paFlow": 220,
+    "ambientAirTemp": 30
+  }'
+
+# Test proximate to ultimate
+curl -X POST http://127.0.0.1:5000/efficiency/proximatetoultimate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "type1",
+    "coalFC": 45,
+    "coalVM": 30,
+    "coalAsh": 20,
+    "coalMoist": 5
+  }'
+```
+
+### Checking Logs
+
+**API Logs:**
+```bash
+# If running with nohup
+cat /tmp/api.log
+
+# Or check terminal output directly
+```
+
+**Filter Logs:**
+```bash
+# If running with nohup
+cat /tmp/filter.log
+
+# Or check terminal output directly
+```
+
+### Debug Mode
+
+Both applications run in Flask debug mode by default. This provides:
+- Automatic reload on code changes
+- Detailed error messages
+- Stack traces for exceptions
+
+---
+
+## 🐛 Known Issues and Solutions
+
+### Issue 1: Port 5000 Already in Use
+
+**Symptom:**
+```
+Address already in use
+Port 5000 is in use by another program
+```
+
+**Cause:** Another instance of the API is already running, or macOS AirPlay Receiver is using port 5000.
+
+**Solutions:**
+
+*Option A - Kill existing process:*
+```bash
+lsof -i :5000
+# Note the PID(s) from output
+kill <PID1> <PID2>  # Replace with actual PIDs
+```
+
+*Option B - Stop AirPlay Receiver (macOS):*
+- Go to System Settings → General → AirDrop & Handoff
+- Turn off "AirPlay Receiver"
+
+*Option C - Run on different port:*
+```bash
+# In app.py, change:
+app.run(host='0.0.0.0', port=5001)
+```
+
+---
+
+### Issue 2: Connection Refused to Local API
+
+**Symptom:**
+```
+ERROR:data.collectors:call_efficiency_api error: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded
+Connection refused
+```
+
+**Cause:** The filter is trying to connect to the API, but the API server is not running.
+
+**Solution:**
+1. Start the API first: `cd optimized-api && ../venv/bin/python3 app.py`
+2. Wait 2-3 seconds for the server to initialize
+3. Then start the filter
+
+---
+
+### Issue 3: IndentationError in turbine.py
+
+**Symptom:**
+```
+IndentationError: unindent does not match any outer indentation level
+```
+
+**Cause:** Code block indentation is incorrect, often after adding new code.
+
+**Solution:**
+Check the indentation around line 75 in `processors/turbine.py`. Ensure `if realtime_data.empty:` is properly indented to match the surrounding code block.
+
+```python
+# Correct indentation:
+realtime_data = self.collector.get_last_values(tags)
+if realtime_data.empty:
+    continue
+
+realtime_dict = realtime_data.to_dict(orient="records")[0]
+```
+
+---
+
+### Issue 4: MQTT Connection Failed
+
+**Symptom:**
+```
+WARNING:__main__:MQTT connection failed: [Errno 64] Host is down. Continuing without MQTT.
+```
+
+**Cause:** MQTT broker is unreachable or configured incorrectly.
+
+**Impact:** The filter will continue to run without publishing to MQTT. Data processing still works, but results won't be sent to the MQTT topic.
+
+**Solutions:**
+
+*Option A - Fix broker connection:*
+```bash
+# Check if broker is running
+ping <BROKER_ADDRESS>
+
+# Verify credentials in .env file
+BROKER_ADDRESS=192.168.68.170
+BROKER_USERNAME=
+BROKER_PASSWORD=
+```
+
+*Option B - Continue without MQTT (current behavior):*
+The code is designed to continue even if MQTT fails. This is intentional - processing continues but skips MQTT publishing.
+
+---
+
+### Issue 5: Tag ID vs Field Name Mapping Issue
+
+**Symptom:**
+Filter sends data like:
+```python
+{"JSW_10LAB40CP202": 14.56, "JSW_10MKA01_09": 161.28, ...}
+```
+
+But API expects:
+```python
+{"FWFinalPress": 14.56, "load": 161.28, ...}
+```
+
+**Cause:** The mapping configuration maps tag IDs to field names, but the processor wasn't applying this mapping.
+
+**Solution (Already Implemented):**
+In `processors/turbine.py`, the code now:
+1. Reads the mapping configuration to get the `realtime` dictionary
+2. Creates a reverse mapping: tag → field name
+3. Renames columns before sending to API
+
+```python
+# Build mapping: tag -> field_name
+names = {}
+for key, tag_list in turbine.get("realtime", {}).items():
+    if isinstance(tag_list, list) and tag_list:
+        names[tag_list[0]] = key
+
+# Rename columns
+renamed_data = {}
+for old_key, value in realtime_dict.items():
+    if old_key != "time":
+        new_key = names.get(old_key, old_key)
+        renamed_data[new_key] = value
+```
+
+---
+
+### Issue 6: Missing THR Category Handlers
+
+**Symptom:**
+API returns 500 or calculation errors for certain category values like `pressureInMpa`, `pressureInKsc`, `lpg_type`.
+
+**Cause:** The dispatch dictionary didn't have handlers for all categories.
+
+**Solution (Already Implemented):**
+Added handlers in `core/dispatch.py` for:
+- `pressureInMpa` → uses MPa-based calculations
+- `pressureInKsc` → converts ksc to MPa
+- `pressureInKsc1` → another variant
+- `lpg_type` → LPG-specific calculations
+- `DBPower` → design best achieved power
+
+---
+
+### Issue 7: Data Not Found - List Index Out of Range
+
+**Symptom:**
+```
+WARNING:data.collectors:Error processing tag result: list index out of range
+```
+
+**Cause:** One or more tags in the request don't have data in the external API.
+
+**Impact:** The API returns partial data - available tags work, missing ones are skipped.
+
+**Solution:** This is a warning, not an error. The code continues processing with available data. To fully fix, ensure all configured tags have data in the source system.
+
+---
+
+### Issue 8: APScheduler - Maximum Running Instances
+
+**Symptom:**
+```
+WARNING:apscheduler.scheduler:Execution of job "main" skipped: maximum number of running instances reached (1)
+```
+
+**Cause:** Previous instance of runner.py is still running, or the job takes longer than the scheduled interval.
+
+**Solution:**
+```bash
+# Kill all runner.py processes
+pkill -f "runner.py"
+
+# Start fresh
+cd optimized-filter
+../venv/bin/python3 runner.py
+```
+
+---
+
+### Issue 9: Wrong API URL Being Called
+
+**Symptom:**
+Filter hits `http://sandbox.exactspace.co/efficiency` instead of local `http://127.0.0.1:5000/efficiency`.
+
+**Cause:** Environment variable `EFFICIENCY_URL` was pointing to sandbox instead of local.
+
+**Solution:**
+In `optimized-filter/.env`:
+```bash
+EFFICIENCY_URL=http://127.0.0.1:5000/efficiency
+```
+
+The code reads this from config and uses it for API calls.
+
+---
+
+### Issue 10: Import Errors After Refactoring
+
+**Symptom:**
+```
+ModuleNotFoundError: No module named 'optimized_api'
+```
+
+**Cause:** Python path not set correctly for the modular structure.
+
+**Solution:**
+The project uses relative imports. Ensure you're running from the correct directory:
+```bash
+# Run from parent directory (api&b folder)
+cd /Users/admin/Desktop/Paras/api&b
+python3 -m optimized_api.app
+
+# Or set PYTHONPATH
+export PYTHONPATH=/Users/admin/Desktop/Paras/api&b:$PYTHONPATH
+```
+
+---
+
+## 📋 Common Development Workflows
+
+### Adding a New Calculation Type
+
+1. **Add function in appropriate module** (e.g., `calculations/proximate.py`)
+2. **Register in dispatch.py**:
+   ```python
+   PROXIMATE_TYPES["type19"] = proximate_to_ultimate_type19
+   ```
+3. **Test endpoint:**
+   ```bash
+   curl -X POST http://127.0.0.1:5000/efficiency/proximatetoultimate \
+     -H "Content-Type: application/json" \
+     -d '{"type": "type19", ...}'
+   ```
+
+### Adding a New THR Category
+
+1. **Add function in** `calculations/turbine.py`
+2. **Register in** `core/dispatch.py`:
+   ```python
+   THR_CATEGORY_DISPATCH["newcategory"] = thr_newcategory
+   ```
+
+### Debugging API Responses
+
+Add debug logging in `data/collectors.py`:
+```python
+# In call_efficiency_api function
+print(f"Calling efficiency API: {url} with payload: {payload}")
+
+response = requests.post(url, json=payload, timeout=30)
+print(f"Efficiency API response status: {response.status_code}")
+```
+
+---
+
 ## 📝 Maintenance Guidelines
 
 ### Adding New Calculation Types

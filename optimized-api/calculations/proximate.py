@@ -1,9 +1,10 @@
 from _imports import Dict, Any
-
+from core.logging_utils import logger, log_section, log_variable, log_warning
 
 def _validate_proximate_inputs(res: Dict[str, Any], required_keys: list) -> Dict[str, Any]:
     for key in required_keys:
         if key not in res:
+            log_warning(f"Missing required input: {key}")
             return {"error": f"Missing required inputs", "status": 400}
     return None
 
@@ -17,6 +18,15 @@ def _proximate_core(
     gcv_scaling: bool = False,
     coalGCV: float = None
 ) -> Dict[str, float]:
+    log_section("PROXIMATE CORE CALCULATION")
+    log_variable("coalFC", coalFC)
+    log_variable("coalVM", coalVM)
+    log_variable("coalAsh", coalAsh)
+    log_variable("coalMoist", coalMoist)
+    log_variable("fixed_sulphur", fixed_sulphur)
+    log_variable("gcv_scaling", gcv_scaling)
+    log_variable("coalGCV", coalGCV)
+    
     carbon = 0.97 * coalFC + 0.7 * (coalVM + 0.1 * coalAsh) - (coalMoist * (0.6 - 0.01 * coalMoist))
     if gcv_scaling and coalGCV:
         carbon = carbon * (coalGCV / 100)
@@ -31,6 +41,12 @@ def _proximate_core(
     
     oxygen = 100 - carbon - hydrogen - coalSulphur - nitrogen - coalAsh - coalMoist
     
+    log_variable("result_carbon", carbon)
+    log_variable("result_hydrogen", hydrogen)
+    log_variable("result_nitrogen", nitrogen)
+    log_variable("result_coalSulphur", coalSulphur)
+    log_variable("result_oxygen", oxygen)
+    
     return {
         "carbon": carbon,
         "hydrogen": hydrogen,
@@ -41,6 +57,8 @@ def _proximate_core(
 
 
 def proximate_to_ultimate_type1(res):
+    log_section("PROXIMATE TYPE1")
+    log_variable("input_keys", list(res.keys()))
     err = _validate_proximate_inputs(res, ["coalFC", "coalVM", "coalAsh", "coalMoist"])
     if err:
         return err
