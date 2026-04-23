@@ -336,3 +336,89 @@ class DataCollector:
         result = self.unit_id in cron_units.split(",")
         log_variable("should_run_as_cron", result)
         return result
+
+    def getTurbineRealtimeData(self, realtime):
+        if not realtime:
+            return pd.DataFrame()
+        tags = []
+        for key, tag_list in realtime.items():
+            if isinstance(tag_list, list) and tag_list:
+                tags.extend(tag_list)
+        return self.get_last_values(tags)
+
+    def getProximateDataOld(self, fuelProximate, loi, blr):
+        if not fuelProximate:
+            return pd.DataFrame()
+        tags = []
+        for key, tag_list in fuelProximate.items():
+            if isinstance(tag_list, list) and tag_list:
+                tags.append(tag_list[0])
+        return self.get_last_values(tags)
+
+    def getBoilerRealtimeDataOld(self, realtime):
+        if not realtime:
+            return pd.DataFrame()
+        tags = []
+        for key, tag_list in realtime.items():
+            if isinstance(tag_list, list) and tag_list:
+                tags.append(tag_list[0])
+        return self.get_last_values(tags)
+
+    def apply_ultimate_config(self, data, fuel, fuel_config):
+        if not fuel_config or data.empty:
+            return data
+        mixture_type = fuel_config.get("mixtureType", "static")
+        if mixture_type == "dynamic":
+            fuel_flow = fuel_config.get("fuelFlow", [])
+            if fuel_flow:
+                try:
+                    for ff in fuel_flow:
+                        if ff in data.columns:
+                            data[ff] = data[ff].clip(lower=0)
+                    total_fuel_flow = data[fuel_flow].sum(axis=1).values[0]
+                    if total_fuel_flow > 0:
+                        data["coalFlow"] = total_fuel_flow
+                except:
+                    pass
+        return data
+
+    def get_ultimate_data(self, fuel_ultimate, loi, blr):
+        if not fuel_ultimate:
+            return pd.DataFrame()
+        tags = []
+        for key, tag_list in fuel_ultimate.items():
+            if isinstance(tag_list, list) and tag_list:
+                tags.append(tag_list[0])
+        df = self.get_last_values(tags)
+        if not df.empty and "time" in df.columns:
+            df["time"] = loi.get("loi", [None])[0] if loi.get("loi") else None
+        return df
+
+    def get_boiler_realtime_data(self, realtime):
+        if not realtime:
+            return pd.DataFrame()
+        tags = []
+        for key, tag_list in realtime.items():
+            if isinstance(tag_list, list) and tag_list:
+                tags.extend(tag_list)
+        return self.get_last_values(tags)
+
+
+def make_config_for_query_metric(unit_id):
+    return {
+        "api_meta": os.environ.get('API_META', ''),
+        "api_query": os.environ.get('API_QUERY', ''),
+        "kairos": os.environ.get('KAIROS_URL', ''),
+        "efficiency_url": os.environ.get('EFFICIENCY_URL', '')
+    }
+
+
+def get_dataTagId_from_meta(unit_id, meta_query_dict):
+    url = f'{unit_id}/tagmeta'
+    try:
+        res = requests.get(url, params=meta_query_dict)
+        if res.status_code == 200:
+            return res.json()
+    except:
+        pass
+    return []
