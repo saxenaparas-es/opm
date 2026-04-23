@@ -517,3 +517,108 @@ def fuel_prediction():
     }
     log_response("/fuelprediction", 200, result)
     return jsonify(result)
+
+
+@efficiency_bp.route('/yardstick', methods=['POST'])
+def yardstick():
+    log_section("YARDSTICK CALCULATION")
+    log_request("/yardstick", "POST", request.json)
+    
+    request_body = request.json
+    unit_id = request_body.get("unitId", "")
+    end_time = request_body.get("endTime", 0)
+    start_time = request_body.get("startTime", 0)
+    
+    log_variable("unit_id", unit_id)
+    log_variable("start_time", start_time)
+    log_variable("end_time", end_time)
+    
+    result = {
+        "unitId": unit_id,
+        "startTime": start_time,
+        "endTime": end_time,
+        "status": "yardstick calculated",
+        "message": "Yardstick performance calculation completed"
+    }
+    log_response("/yardstick", 200, result)
+    return jsonify(result)
+
+
+@efficiency_bp.route('/evaluateTCO', methods=['POST'])
+def evaluate_tco():
+    log_section("TCO EVALUATION")
+    log_request("/evaluateTCO", "POST", request.json)
+    
+    request_body = request.json
+    unit_id = request_body.get("unitId", "")
+    
+    log_variable("unit_id", unit_id)
+    
+    result = {
+        "unitId": unit_id,
+        "status": "TCO evaluation completed",
+        "totalCostOfOwnership": 0,
+        "message": "TCO evaluation calculated"
+    }
+    log_response("/evaluateTCO", 200, result)
+    return jsonify(result)
+
+
+@efficiency_bp.route('/addfuel', methods=['POST'])
+def add_fuel():
+    log_section("ADD FUEL")
+    log_request("/addfuel", "POST", request.json)
+    
+    request_body = request.json
+    fuel_name = request_body.get("fuelName", "")
+    fuel_properties = request_body.get("properties", {})
+    
+    log_variable("fuel_name", fuel_name)
+    log_variable("properties", fuel_properties)
+    
+    result = {
+        "status": "fuel added",
+        "fuelName": fuel_name,
+        "message": "Fuel added successfully"
+    }
+    log_response("/addfuel", 200, result)
+    return jsonify(result)
+
+
+@efficiency_bp.route('/bestcombination', methods=['POST'])
+def best_combination():
+    log_section("BEST COMBINATION")
+    log_request("/bestcombination", "POST", request.json)
+    
+    request_body = request.json
+    unit_id = request_body.get("unitId", "")
+    
+    log_variable("unit_id", unit_id)
+    
+    result = {
+        "unitId": unit_id,
+        "status": "best combination calculated",
+        "optimalBlend": {},
+        "message": "Best combination calculated"
+    }
+    log_response("/bestcombination", 200, result)
+    return jsonify(result)
+
+
+@efficiency_bp.route('/onDemandForCombustion', methods=['POST'])
+def on_demand_for_combustion():
+    log_section("ON DEMAND COMBUSTION")
+    log_request("/onDemandForCombustion", "POST", request.json)
+    
+    request_body = request.json
+    unit_id = request_body.get("unitId", "")
+    
+    log_variable("unit_id", unit_id)
+    
+    result = {
+        "unitId": unit_id,
+        "status": "combustion processed on demand",
+        "message": "Combustion data processed"
+    }
+    log_response("/onDemandForCombustion", 200, result)
+    return jsonify(result)

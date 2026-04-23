@@ -131,7 +131,7 @@ def init_dispatch():
     from calculations.turbine import (
         thr_cogent, thr_cogent2, thr_cogent3, thr_cogent4,
         thr_cogent5, thr_cogent6, thr_cogent7, thr_cogent8,
-        thr_ingest, thr_ingest2, thr_default
+        thr_ingest, thr_ingest2, thr_default, thr_pressureInMpa_calcs
     )
     THR_CATEGORY_DISPATCH.update({
         "cogent": thr_cogent,
@@ -142,6 +142,10 @@ def init_dispatch():
         "cogent6": thr_cogent6,
         "cogent7": thr_cogent7,
         "cogent8": thr_cogent8,
+        "pressureInMpa": thr_pressureInMpa_calcs,
+        "pressureInKsc": thr_pressureInMpa_calcs,
+        "pressureInKsc1": thr_pressureInMpa_calcs,
+        "lpg_type": thr_default,
         "ingest": thr_ingest,
         "ingest2": thr_ingest2,
         "default": thr_default,

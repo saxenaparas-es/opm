@@ -191,3 +191,86 @@ def thr_default(res):
     enthalpyMS = get_steam_enthalpy(res["steamTempMS"], res["steamPressureMS"])
     enthalpyFW = get_steam_enthalpy(res["FWFinalTemp"], res["FWFinalPress"])
     return {"turbineHeatRate": (res["steamFlowMS"] * (enthalpyMS - enthalpyFW)) / res["load"]}
+
+
+def thr_pressureInMpa_calcs(res):
+    from _imports import IAPWS97
+    
+    res["totalShSprayWater"] = res.get("ShSprayWater01", 0) + res.get("ShSprayWater02", 0)
+    res["enthalpyMS"] = IAPWS97(T=(res["steamTempMS"] + 273), P=(res["steamPressureMS"])).h
+    res["enthalpyFW"] = IAPWS97(T=(res["FWFinalTemp"] + 273), P=(res["FWFinalPress"])).h
+    
+    res["HptSteamExhaustEnthalpy"] = IAPWS97(T=(res["HptExhaustTemp"] + 273), P=(res["HptExhaustPressure"])).h
+    res["IptInletSteamEnthalpy"] = IAPWS97(T=(res["IptInletSteamTemp"] + 273), P=(res["IptInletSteamPress"])).h
+    res["FeedWaterInletBeforeEcoEnthalpy"] = IAPWS97(T=(res["FWFinalTemp"] + 273), P=(res["FWFinalPress"])).h
+    
+    if res.get("totalShSprayWater", 0) > 0.0:
+        res["ShSprayWaterEnthalpy"] = IAPWS97(T=(res.get("ShRhSprayWaterTemp", res["FWFinalTemp"]) + 273), P=(res["FWFinalPress"])).h + res.get("SprayWaterEnthalpyConstant", 0)
+    else:
+        res["ShSprayWaterEnthalpy"] = res.get("SprayWaterEnthalpyConstant", 0)
+    
+    if res.get("RhSprayWater", 0) > 0.0:
+        res["RhSprayWaterEnthalpy"] = IAPWS97(T=(res.get("ShRhSprayWaterTemp", res["FWFinalTemp"]) + 273), P=(res["FWFinalPress"])).h + res.get("SprayWaterEnthalpyConstant", 0)
+    else:
+        res["RhSprayWaterEnthalpy"] = res.get("SprayWaterEnthalpyConstant", 0)
+    
+    res["FeedWaterInletToHph8Enthalpy"] = IAPWS97(T=(res["FeedWaterInletTempToHph8"] + 273), P=(res["FWFinalPress"])).h + res.get("FeedWaterInletToHph8EnthalpyConstant", 0)
+    res["FeedWaterOutletToHph8Enthalpy"] = IAPWS97(T=(res["FeedWaterOutletTempToHph8"] + 273), P=(res["FWFinalPress"])).h + res.get("FeedWaterOutletToHph8EnthalpyConstant", 0)
+    res["ExtractionSteamHph8Enthalpy"] = IAPWS97(T=(res["ExtractionSteamTempHph8"] + 273), P=(res["ExtractionSteamPressureHph8"])).h + res.get("ExtractionSteamHph8EnthalpyConstant", 0)
+    res["DripHph8Enthalpy"] = IAPWS97(T=(res["DripTemperatureHph8"] + 273), P=(res["ExtractionSteamPressureHph8"])).h
+    res["ExtractionSteamFlowHph8"] = res["FeedWaterFlow"] * (res["FeedWaterOutletToHph8Enthalpy"] - res["FeedWaterInletToHph8Enthalpy"]) / (res["ExtractionSteamHph8Enthalpy"] - res["DripHph8Enthalpy"])
+    
+    if res["ExtractionSteamPressureHph8"] < 1.0:
+        res["ExtractionSteamFlowHph8"] = 0.0
+    
+    res["FeedWaterInletToHph7Enthalpy"] = IAPWS97(T=(res["FeedWaterInletTempToHph7"] + 273), P=(res["FWFinalPress"])).h + res.get("FeedWaterInletToHph7EnthalpyConstant", 0)
+    res["FeedWaterOutletToHph7Enthalpy"] = res["FeedWaterInletToHph8Enthalpy"]
+    res["ExtractionSteamHph7Enthalpy"] = IAPWS97(T=(res["ExtractionSteamTempHph7"] + 273), P=(res["ExtractionSteamPressureHph7"])).h + res.get("ExtractionSteamHph7EnthalpyConstant", 0)
+    res["DripHph7Enthalpy"] = IAPWS97(T=(res["DripTemperatureHph7"] + 273), P=(res["ExtractionSteamPressureHph7"])).h + res.get("DripHph7EnthalpyConstant", 0)
+    
+    res["ExtractionSteamFlowHph7"] = (res["FeedWaterFlow"] * (res["FeedWaterOutletToHph7Enthalpy"] - res["FeedWaterInletToHph7Enthalpy"]) - res["ExtractionSteamFlowHph8"] * (res["DripHph8Enthalpy"] - res["DripHph7Enthalpy"])) / (res["ExtractionSteamHph7Enthalpy"] - res["DripHph7Enthalpy"]) - 0.08
+    
+    if res["ExtractionSteamPressureHph7"] < 0.5:
+        res["ExtractionSteamFlowHph7"] = 0.0
+    
+    try:
+        res["FeedWaterInletToHph6Enthalpy"] = IAPWS97(T=(res.get("FeedWaterInletTempToHph6", res["FeedWaterInletTempToHph7"]) + 273), P=(res["FWFinalPress"])).h - res.get("FeedWaterInletToHph6EnthalpyConstant", 0)
+        res["FeedWaterOutletToHph6Enthalpy"] = IAPWS97(T=(res.get("FeedWaterInletTempToHph7", res["FeedWaterInletTempToHph7"]) + 273), P=(res["FWFinalPress"])).h - res.get("FeedWaterOutletToHph6EnthalpyConstant", 0)
+        res["ExtractionSteamHph6Enthalpy"] = IAPWS97(T=(res.get("ExtractionSteamTempHph6", res["ExtractionSteamTempHph7"]) + 273), P=(res.get("ExtractionSteamPressureHph6", res["ExtractionSteamPressureHph7"]))).h + res.get("ExtractionSteamHph6EnthalpyConstant", 0)
+        res["DripHph6Enthalpy"] = IAPWS97(T=(res.get("DripTemperatureHph6", res["DripTemperatureHph7"]) + 273), P=(res.get("ExtractionSteamPressureHph6", res["ExtractionSteamPressureHph7"]))).h + res.get("DripHph6EnthalpyConstant", 0)
+        
+        res["ExtractionSteamFlowHph6"] = (res["FeedWaterFlow"] * (res["FeedWaterOutletToHph6Enthalpy"] - res["FeedWaterInletToHph6Enthalpy"]) - (res["ExtractionSteamFlowHph8"] + res["ExtractionSteamFlowHph7"]) * (res["DripHph7Enthalpy"] - res["DripHph6Enthalpy"])) / (res["ExtractionSteamHph6Enthalpy"] - res["DripHph6Enthalpy"]) - 0.259
+    except Exception as e:
+        res["ExtractionSteamFlowHph6"] = 0.0
+        res["FeedWaterInletToHph6Enthalpy"] = 0.0
+        res["FeedWaterOutletToHph6Enthalpy"] = 0.0
+        res["ExtractionSteamHph6Enthalpy"] = 0.0
+        res["DripHph6Enthalpy"] = 0.0
+    
+    if res.get("ExtractionSteamPressureHph6", 1.0) < 0.5:
+        res["ExtractionSteamFlowHph6"] = 0.0
+    
+    try:
+        res["condensateInletHph5Enthalpy"] = IAPWS97(T=(res.get("condensateInletTempHph5", 80) + 273), P=(res.get("condensateInletWaterPress", 12.74))).h
+        res["condensateOutletHph5Enthalpy"] = IAPWS97(T=(res.get("FeedWaterInletTempToHph6", res.get("FeedWaterInletTempToHph7", 100)) + 273), P=12.74).h
+        res["ExtractionSteamHph5Enthalpy"] = IAPWS97(T=(res.get("extractionSteamTempHph5", 150) + 273), P=(res.get("extractionSteamPressureHph5", 1.0))).h
+        
+        res["extractionSteamFlowHph5"] = (res.get("condensateFlow", 0) * (res["condensateOutletHph5Enthalpy"] - res["condensateInletHph5Enthalpy"]) - (res["ExtractionSteamFlowHph8"] + res["ExtractionSteamFlowHph7"] + res["ExtractionSteamFlowHph6"] + 0.834 + 3.81) * (res["DripHph6Enthalpy"] - res["condensateOutletHph5Enthalpy"])) / (res["ExtractionSteamHph5Enthalpy"] - res["condensateOutletHph5Enthalpy"]) - 0.02
+    except Exception as e:
+        res["extractionSteamFlowHph5"] = 0.0
+        res["condensateInletHph5Enthalpy"] = 0.0
+        res["condensateOutletHph5Enthalpy"] = 0.0
+        res["ExtractionSteamHph5Enthalpy"] = 0.0
+    
+    if res.get("extractionSteamPressureHph5", 0.5) < 0.3:
+        res["extractionSteamFlowHph5"] = 0.0
+    
+    res["finalFeedWaterFlow_CalculatedFromCondensateFlow"] = res.get("extractionSteamFlowHph5", 0) + res.get("condensateFlow", 0) + res["ExtractionSteamFlowHph6"] + res["ExtractionSteamFlowHph7"] + res["ExtractionSteamFlowHph8"] - res.get("RhSprayWater", 0) - res["totalShSprayWater"] + 0.011
+    
+    res["computedMainSteamFlow_computedFWFlow"] = res["finalFeedWaterFlow_CalculatedFromCondensateFlow"] + res["totalShSprayWater"]
+    
+    res["HrhSteamFlow"] = res["steamFlowMS"] - res["ExtractionSteamFlowHph7"] - res["ExtractionSteamFlowHph8"] - res.get("GlandSteamFlow_LeakOff_InterStageLeakage", 0)
+    
+    res["turbineHeatRate"] = ((res["steamFlowMS"] * (res["enthalpyMS"] - res["enthalpyFW"]) + res["HrhSteamFlow"] * (res["IptInletSteamEnthalpy"] - res["HptSteamExhaustEnthalpy"]) + res["totalShSprayWater"] * (res["enthalpyFW"] - res["ShSprayWaterEnthalpy"]) + res.get("RhSprayWater", 0) * (res["IptInletSteamEnthalpy"] - res["RhSprayWaterEnthalpy"])) / res["load"]) / 4.186
+    
+    return {"turbineHeatRate": res["turbineHeatRate"]}
