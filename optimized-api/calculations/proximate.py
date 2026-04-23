@@ -69,7 +69,27 @@ def proximate_to_ultimate_type2(res):
     err = _validate_proximate_inputs(res, ["coalFC", "coalVM", "coalAsh", "coalMoist", "mineralMatter"])
     if err:
         return err
-    return _proximate_core(res["coalFC"], res["coalVM"], res["coalAsh"], res["coalMoist"])
+    
+    coalFC = res["coalFC"]
+    coalVM = res["coalVM"]
+    coalAsh = res["coalAsh"]
+    coalMoist = res["coalMoist"]
+    mineralMatter = res.get("mineralMatter", res["coalAsh"] * 1.1)
+    
+    carbon = 0.97 * coalFC + 0.7 * (coalVM + 0.1 * coalAsh) - (coalMoist * (0.6 - 0.01 * coalMoist))
+    hydrogen = 0.036 * coalFC + 0.086 * (coalVM - 0.1 * coalAsh) - 0.0035 * coalMoist ** 2 * (1 - 0.02 * coalMoist)
+    nitrogen = 2.1 - 0.02 * coalVM
+    coalSulphur = 0.009 * (coalFC + coalVM)
+    oxygen = 100 - carbon - hydrogen - coalSulphur - nitrogen - mineralMatter - coalMoist
+    
+    return {
+        "carbon": round(carbon, 4),
+        "hydrogen": round(hydrogen, 4),
+        "nitrogen": round(nitrogen, 4),
+        "coalSulphur": round(coalSulphur, 4),
+        "oxygen": round(oxygen, 4),
+        "mineralMatter": round(mineralMatter, 4)
+    }
 
 
 def proximate_to_ultimate_type3(res):
@@ -104,7 +124,13 @@ def proximate_to_ultimate_type7(res):
     err = _validate_proximate_inputs(res, ["coalFC", "coalVM", "coalAsh", "coalMoist"])
     if err:
         return err
-    return _proximate_core(res["coalFC"], res["coalVM"], res["coalAsh"], res["coalMoist"])
+    
+    result = _proximate_core(res["coalFC"], res["coalVM"], res["coalAsh"], res["coalMoist"])
+    
+    if "coalSulphur" not in result or result.get("coalSulphur", 0) == 0:
+        result["coalSulphur"] = 0.88
+    
+    return result
 
 
 def proximate_to_ultimate_type8(res):
@@ -125,7 +151,26 @@ def proximate_to_ultimate_type10(res):
     err = _validate_proximate_inputs(res, ["coalFC", "coalVM", "coalAsh", "coalMoist"])
     if err:
         return err
-    return _proximate_core(res["coalFC"], res["coalVM"], res["coalAsh"], res["coalMoist"], fixed_sulphur=0.7)
+    
+    coalFC = res["coalFC"]
+    coalVM = res["coalVM"]
+    coalAsh = res["coalAsh"]
+    coalMoist = res["coalMoist"]
+    mineralMatter = res.get("mineralMatter", res["coalAsh"] * 1.1)
+    
+    carbon = 0.97 * coalFC + 0.7 * (coalVM + 0.1 * coalAsh) - (coalMoist * (0.6 - 0.01 * coalMoist))
+    hydrogen = 0.036 * coalFC + 0.086 * (coalVM - 0.1 * coalAsh) - 0.0035 * coalMoist ** 2 * (1 - 0.02 * coalMoist)
+    nitrogen = 2.1 - 0.02 * coalVM
+    coalSulphur = 0.7
+    oxygen = 100 - carbon - hydrogen - coalSulphur - nitrogen - mineralMatter - coalMoist
+    
+    return {
+        "carbon": round(carbon, 4),
+        "hydrogen": round(hydrogen, 4),
+        "nitrogen": round(nitrogen, 4),
+        "coalSulphur": round(coalSulphur, 4),
+        "oxygen": round(oxygen, 4)
+    }
 
 
 def proximate_to_ultimate_type11(res):
