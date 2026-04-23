@@ -144,3 +144,37 @@ if __name__ == '__main__':
         
         while True:
             time.sleep(60)
+
+
+def turbineSide(unit_id: str, mapping_data: dict) -> Dict:
+    result = {"unitId": unit_id}
+    turbine_tags = []
+    
+    for turbine in mapping_data.get("turbineHeatRate", []):
+        for tag_value in turbine.get("realtime", {}).values():
+            if isinstance(tag_value, list):
+                turbine_tags.extend(tag_value)
+    
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=unit_id
+    )
+    
+    if turbine_tags:
+        data = collector.get_last_values(turbine_tags)
+        if not data.empty:
+            result["turbineData"] = data.to_dict(orient="records")[0]
+            result["status"] = "success"
+        else:
+            result["status"] = "no_data"
+    else:
+        result["status"] = "no_tags"
+    
+    return result
+
+
+def should_run_as_cron(unit_id: str) -> bool:
+    cron_units = os.environ.get("CRON_UNITS", "")
+    if not cron_units:
+        return False
+    return unit_id in cron_units.split(",")

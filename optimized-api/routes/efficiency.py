@@ -8,8 +8,8 @@ from calculations.proximate import (
     proximate_to_ultimate_type9, proximate_to_ultimate_type10,
     proximate_to_ultimate_type11, proximate_to_ultimate_type12,
     proximate_to_ultimate_type13, proximate_to_ultimate_type14,
-    proximate_to_ultimate_type15, proximate_to_ultimate_type17,
-    proximate_to_ultimate_type18
+    proximate_to_ultimate_type15, proximate_to_ultimate_type16,
+    proximate_to_ultimate_type17, proximate_to_ultimate_type18
 )
 from calculations.boiler_efficiency import (
     boiler_efficiency_type1, boiler_efficiency_type2,

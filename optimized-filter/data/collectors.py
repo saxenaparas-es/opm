@@ -422,3 +422,141 @@ def get_dataTagId_from_meta(unit_id, meta_query_dict):
     except:
         pass
     return []
+
+
+# === Missing functions from index-b.py ===
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        logger.info(f"Connected to MQTT broker successfully")
+    else:
+        logger.error(f"MQTT connection failed with code {rc}")
+
+
+def on_log(client, userdata, level, buf):
+    logger.debug(f"MQTT Log: {buf}")
+
+
+def getThreshold(data_tag_id: str):
+    from data.collectors import DataCollector
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=''
+    )
+    return collector.get_threshold(data_tag_id)
+
+
+def getLastValue(tag: str):
+    from data.collectors import DataCollector
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=''
+    )
+    return collector.get_last_value(tag)
+
+
+def applyUltimateConfig(data: pd.DataFrame, fuel_config: dict):
+    if fuel_config is None or data.empty:
+        return data
+    mixture_type = fuel_config.get("mixtureType", "static")
+    if mixture_type == "dynamic":
+        fuel_flow = fuel_config.get("fuelFlow", [])
+        if fuel_flow:
+            try:
+                for ff in fuel_flow:
+                    if ff in data.columns:
+                        data[ff] = data[ff].clip(lower=0)
+                total_fuel_flow = data[fuel_flow].sum(axis=1).values[0]
+                if total_fuel_flow > 0:
+                    data["coalFlow"] = total_fuel_flow
+            except:
+                pass
+    return data
+
+
+def getUltimateData(fuel_ultimate: dict, loi: dict, blr: dict):
+    from data.collectors import DataCollector
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=''
+    )
+    if not fuel_ultimate:
+        return pd.DataFrame()
+    return collector.get_ultimate_data(fuel_ultimate, loi, blr)
+
+
+def getProximateData(fuelProximate: dict, loi: dict, blr: dict):
+    from data.collectors import DataCollector
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=''
+    )
+    if not fuelProximate:
+        return pd.DataFrame()
+    return collector.getProximateDataOld(fuelProximate, loi, blr)
+
+
+def post_query_method(actual_data: dict, design_data: dict, bperf_data: dict, asset_manager_config: dict, boiler_config: dict, post_time: int):
+    """Post query results to database."""
+    try:
+        import qr
+        for loss in boiler_config.get("outputs", {}).keys():
+            metric_name = f"{boiler_config.get('unitId', '')}_{boiler_config.get('systemName', 'boiler')}_asset_manager"
+            tags_dict = {
+                "dataTagId": boiler_config["outputs"][loss],
+                "parameter": asset_manager_config.get(boiler_config["systemName"], {}).get(boiler_config["outputs"][loss], ""),
+                "measureUnit": "%",
+                "calculationType": "actual"
+            }
+            body = [{
+                "name": metric_name,
+                "datapoints": [[post_time, round(actual_data.get(loss, 0), 3)]],
+                "tags": tags_dict
+            }]
+            qr.postDataPacket(body)
+    except Exception as e:
+        logger.error(f"Error in post_query_method: {e}")
+
+
+def getLastValues(taglist: List[str], end_absolute: int = 0) -> pd.DataFrame:
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=''
+    )
+    return collector.get_last_values(taglist, end_absolute)
+
+
+def getProximateDataOld(fuel_proximate: dict, loi: dict) -> pd.DataFrame:
+    if not fuel_proximate:
+        return pd.DataFrame()
+    tags = []
+    for key, tag_list in fuel_proximate.items():
+        if isinstance(tag_list, list) and tag_list:
+            tags.append(tag_list[0])
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=''
+    )
+    return collector.get_last_values(tags)
+
+
+def getTurbineRealtimeData(realtime: dict) -> pd.DataFrame:
+    if not realtime:
+        return pd.DataFrame()
+    tags = []
+    for key, tag_list in realtime.items():
+        if isinstance(tag_list, list) and tag_list:
+            tags.extend(tag_list)
+    collector = DataCollector(
+        config={'api_meta': os.environ.get('API_META', '')},
+        unit_id=''
+    )
+    return collector.get_last_values(tags)
+
+
+def getBoilerRealtimeDataOld(realtime: dict) -> pd.DataFrame:
+    return getTurbineRealtimeData(realtime)
+
+
+def getBoilerRealtimeData(realtime: dict) -> pd.DataFrame:
+    return getTurbineRealtimeData(realtime)
