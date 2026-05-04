@@ -88,7 +88,7 @@ def proximate_to_ultimate_type2(res):
         "nitrogen": round(nitrogen, 4),
         "coalSulphur": round(coalSulphur, 4),
         "oxygen": round(oxygen, 4),
-        "mineralMatter": round(mineralMatter, 4)
+        "mineral": round(mineralMatter, 4)
     }
 
 
@@ -169,7 +169,8 @@ def proximate_to_ultimate_type10(res):
         "hydrogen": round(hydrogen, 4),
         "nitrogen": round(nitrogen, 4),
         "coalSulphur": round(coalSulphur, 4),
-        "oxygen": round(oxygen, 4)
+        "oxygen": round(oxygen, 4),
+        "mineral": round(mineralMatter, 4)
     }
 
 
